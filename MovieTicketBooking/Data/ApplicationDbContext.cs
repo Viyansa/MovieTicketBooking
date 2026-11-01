@@ -13,6 +13,7 @@ namespace MovieTicketBooking.Data
         public DbSet<Movie> Movies { get; set; }
         public DbSet<Theatre> Theatres { get; set; }
         public DbSet<Screen> Screens { get; set; }
+        public DbSet<Seat> Seats { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -26,6 +27,15 @@ namespace MovieTicketBooking.Data
 
             modelBuilder.Entity<Screen>()
                 .HasIndex(s => new { s.TheatreId, s.ScreenName })
+                .IsUnique();
+            modelBuilder.Entity<Seat>()
+    .HasOne(s => s.Screen)
+    .WithMany(s => s.Seats)
+    .HasForeignKey(s => s.ScreenId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Seat>()
+                .HasIndex(s => new { s.ScreenId, s.RowName, s.SeatNumber })
                 .IsUnique();
         }
     }
