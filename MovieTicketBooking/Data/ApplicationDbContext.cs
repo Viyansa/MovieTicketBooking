@@ -1,6 +1,8 @@
-﻿
+﻿using MovieTicketBooking.Models;
+
 using Microsoft.EntityFrameworkCore;
-using MovieTicketBooking.Models;
+
+
 
 namespace MovieTicketBooking.Data;
 
@@ -12,5 +14,6 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<Movie> Movies { get; set; }
+    public DbSet<Theatre> Theatres { get; set; }
 }
 
