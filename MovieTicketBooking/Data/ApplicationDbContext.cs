@@ -1,19 +1,33 @@
-﻿using MovieTicketBooking.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using MovieTicketBooking.Models;
 
-using Microsoft.EntityFrameworkCore;
-
-
-
-namespace MovieTicketBooking.Data;
-
-public class ApplicationDbContext : DbContext
+namespace MovieTicketBooking.Data
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
+    public class ApplicationDbContext : DbContext
     {
-    }
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
+        {
+        }
 
-    public DbSet<Movie> Movies { get; set; }
-    public DbSet<Theatre> Theatres { get; set; }
+        public DbSet<Movie> Movies { get; set; }
+        public DbSet<Theatre> Theatres { get; set; }
+        public DbSet<Screen> Screens { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Screen>()
+                .HasOne(s => s.Theatre)
+                .WithMany(t => t.Screens)
+                .HasForeignKey(s => s.TheatreId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Screen>()
+                .HasIndex(s => new { s.TheatreId, s.ScreenName })
+                .IsUnique();
+        }
+    }
 }
 
