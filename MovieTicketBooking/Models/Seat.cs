@@ -24,5 +24,7 @@ namespace MovieTicketBooking.Models
         public Screen? Screen { get; set; }
         public ICollection<ShowSeat> ShowSeats { get; set; }
     = new List<ShowSeat>();
+        public ICollection<BookingSeat> BookingSeats { get; set; }
+    = new List<BookingSeat>();
     }
 }

@@ -16,6 +16,9 @@ namespace MovieTicketBooking.Data
         public DbSet<Seat> Seats { get; set; }
         public DbSet<Show> Shows { get; set; }
         public DbSet<ShowSeat> ShowSeats { get; set; }
+        public DbSet<Booking> Bookings { get; set; }
+
+        public DbSet<BookingSeat> BookingSeats { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -64,6 +67,27 @@ namespace MovieTicketBooking.Data
             modelBuilder.Entity<ShowSeat>()
                 .HasIndex(ss => new { ss.ShowId, ss.SeatId })
                 .IsUnique();
+            modelBuilder.Entity<Booking>()
+    .HasOne(b => b.Show)
+    .WithMany(s => s.Bookings)
+    .HasForeignKey(b => b.ShowId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Booking>()
+                .HasIndex(b => b.BookingReference)
+                .IsUnique();
+
+            modelBuilder.Entity<BookingSeat>()
+                .HasOne(bs => bs.Booking)
+                .WithMany(b => b.BookingSeats)
+                .HasForeignKey(bs => bs.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<BookingSeat>()
+                .HasOne(bs => bs.Seat)
+                .WithMany(s => s.BookingSeats)
+                .HasForeignKey(bs => bs.SeatId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
