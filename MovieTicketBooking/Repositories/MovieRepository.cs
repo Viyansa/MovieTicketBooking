@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using MovieTicketBooking.Data;
 using MovieTicketBooking.Models;
-using MovieTicketBooking.Repositories.Interfaces;
+using MovieTicketBooking.Repositories.Interface;
 
 namespace MovieTicketBooking.Repositories;
 
@@ -61,5 +61,24 @@ public class MovieRepository : IMovieRepository
     {
         _context.Movies.Remove(movie);
         await _context.SaveChangesAsync();
+    }
+    public async Task<List<Movie>> GetAllAsync()
+    {
+        return await _context.Movies.ToListAsync();
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var movie = await _context.Movies.FindAsync(id);
+
+        if (movie == null)
+        {
+            return false;
+        }
+
+        _context.Movies.Remove(movie);
+        await _context.SaveChangesAsync();
+
+        return true;
     }
 }

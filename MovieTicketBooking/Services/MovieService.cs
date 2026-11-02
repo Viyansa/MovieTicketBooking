@@ -1,7 +1,7 @@
 ﻿
 using MovieTicketBooking.DTOs.Movies;
 using MovieTicketBooking.Models;
-using MovieTicketBooking.Repositories.Interfaces;
+using MovieTicketBooking.Repositories.Interface;
 using MovieTicketBooking.Services.Interfaces;
 
 namespace MovieTicketBooking.Services;

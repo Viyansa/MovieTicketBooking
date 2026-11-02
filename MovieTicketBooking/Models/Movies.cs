@@ -13,6 +13,7 @@ public class Movie
 
     [StringLength(500)]
     public string? Description { get; set; }
+    public ICollection<Show> Shows { get; set; } = new List<Show>();
 
     [Range(1, int.MaxValue)]
     public int DurationMinutes { get; set; }

@@ -15,5 +15,6 @@ namespace MovieTicketBooking.Models
 
         public Theatre? Theatre { get; set; }
         public ICollection<Seat> Seats { get; set; } = new List<Seat>();
+        public ICollection<Show> Shows { get; set; } = new List<Show>();
     }
 }
