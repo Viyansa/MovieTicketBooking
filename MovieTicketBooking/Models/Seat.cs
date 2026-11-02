@@ -22,5 +22,7 @@ namespace MovieTicketBooking.Models
         public string SeatType { get; set; } = string.Empty;
 
         public Screen? Screen { get; set; }
+        public ICollection<ShowSeat> ShowSeats { get; set; }
+    = new List<ShowSeat>();
     }
 }

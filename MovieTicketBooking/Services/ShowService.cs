@@ -11,75 +11,113 @@ namespace MovieTicketBooking.Services
         private readonly IShowRepository _showRepository;
         private readonly IMovieRepository _movieRepository;
         private readonly IScreenRepository _screenRepository;
+        private readonly ISeatRepository _seatRepository;
+        private readonly IShowSeatRepository _showSeatRepository;
 
         public ShowService(
             IShowRepository showRepository,
             IMovieRepository movieRepository,
-            IScreenRepository screenRepository)
+            IScreenRepository screenRepository,
+            ISeatRepository seatRepository,
+            IShowSeatRepository showSeatRepository)
         {
             _showRepository = showRepository;
             _movieRepository = movieRepository;
             _screenRepository = screenRepository;
+            _seatRepository = seatRepository;
+            _showSeatRepository = showSeatRepository;
         }
 
         public async Task<ShowResponse> CreateAsync(CreateShowRequest request)
         {
-            ValidateShowDetails(
-                request.StartTime,
-                request.EndTime,
-                request.TicketPrice);
+            if (request.StartTime >= request.EndTime)
+            {
+                throw new ArgumentException("End time must be greater than start time.");
+            }
 
-            var movie = await _movieRepository.GetByIdAsync(request.MovieId);
+            if (request.TicketPrice < 0)
+            {
+                throw new ArgumentException("Ticket price cannot be negative.");
+            }
+
+            Movie? movie = await _movieRepository.GetByIdAsync(request.MovieId);
 
             if (movie == null)
             {
                 throw new ArgumentException("Movie not found.");
             }
 
-            var screen = await _screenRepository.GetByIdAsync(request.ScreenId);
+            Screen? screen = await _screenRepository.GetByIdAsync(request.ScreenId);
 
             if (screen == null)
             {
                 throw new ArgumentException("Screen not found.");
             }
 
-            bool conflict = await _showRepository.HasScheduleConflictAsync(
+            bool hasConflict = await _showRepository.HasScheduleConflictAsync(
                 request.ScreenId,
                 request.StartTime,
-                request.EndTime);
+                request.EndTime,
+                null);
 
-            if (conflict)
+            if (hasConflict)
             {
-                throw new ArgumentException(
-                    "Another show is already scheduled during this time on this screen.");
+                throw new ArgumentException("Another show is already scheduled during this time.");
             }
 
-            var show = new Show
+            Show show = new Show
             {
                 MovieId = request.MovieId,
                 ScreenId = request.ScreenId,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
-                TicketPrice = request.TicketPrice,
-                Movie = movie,
-                Screen = screen
+                TicketPrice = request.TicketPrice
             };
 
-            await _showRepository.AddAsync(show);
+            Show createdShow = await _showRepository.AddAsync(show);
 
-            return MapToResponse(show);
+            List<Seat> seats =
+                await _seatRepository.GetByScreenIdAsync(createdShow.ScreenId);
+
+            List<ShowSeat> showSeats = new List<ShowSeat>();
+
+            foreach (Seat seat in seats)
+            {
+                ShowSeat showSeat = new ShowSeat
+                {
+                    ShowId = createdShow.ShowId,
+                    SeatId = seat.SeatId,
+                    Status = "Available"
+                };
+
+                showSeats.Add(showSeat);
+            }
+
+            if (showSeats.Count > 0)
+            {
+                await _showSeatRepository.AddRangeAsync(showSeats);
+            }
+
+            return MapToResponse(createdShow);
         }
 
         public async Task<List<ShowResponse>> GetAllAsync()
         {
-            var shows = await _showRepository.GetAllAsync();
+            List<Show> shows = await _showRepository.GetAllAsync();
 
-            return MapToResponseList(shows);
+            List<ShowResponse> response = new List<ShowResponse>();
+
+            foreach (Show show in shows)
+            {
+                response.Add(MapToResponse(show));
+            }
+
+            return response;
         }
 
         public async Task<ShowResponse?> GetByIdAsync(int id)
         {
-            var show = await _showRepository.GetByIdAsync(id);
+            Show? show = await _showRepository.GetByIdAsync(id);
 
             if (show == null)
             {
@@ -91,58 +129,80 @@ namespace MovieTicketBooking.Services
 
         public async Task<List<ShowResponse>> GetByMovieIdAsync(int movieId)
         {
-            var shows = await _showRepository.GetByMovieIdAsync(movieId);
+            List<Show> shows =
+                await _showRepository.GetByMovieIdAsync(movieId);
 
-            return MapToResponseList(shows);
+            List<ShowResponse> response = new List<ShowResponse>();
+
+            foreach (Show show in shows)
+            {
+                response.Add(MapToResponse(show));
+            }
+
+            return response;
         }
 
         public async Task<List<ShowResponse>> GetByScreenIdAsync(int screenId)
         {
-            var shows = await _showRepository.GetByScreenIdAsync(screenId);
+            List<Show> shows =
+                await _showRepository.GetByScreenIdAsync(screenId);
 
-            return MapToResponseList(shows);
+            List<ShowResponse> response = new List<ShowResponse>();
+
+            foreach (Show show in shows)
+            {
+                response.Add(MapToResponse(show));
+            }
+
+            return response;
         }
 
         public async Task<ShowResponse?> UpdateAsync(
             int id,
             UpdateShowRequest request)
         {
-            var show = await _showRepository.GetByIdAsync(id);
+            Show? show = await _showRepository.GetByIdAsync(id);
 
             if (show == null)
             {
                 return null;
             }
 
-            ValidateShowDetails(
-                request.StartTime,
-                request.EndTime,
-                request.TicketPrice);
+            if (request.StartTime >= request.EndTime)
+            {
+                throw new ArgumentException("End time must be greater than start time.");
+            }
 
-            var movie = await _movieRepository.GetByIdAsync(request.MovieId);
+            if (request.TicketPrice < 0)
+            {
+                throw new ArgumentException("Ticket price cannot be negative.");
+            }
+
+            Movie? movie =
+                await _movieRepository.GetByIdAsync(request.MovieId);
 
             if (movie == null)
             {
                 throw new ArgumentException("Movie not found.");
             }
 
-            var screen = await _screenRepository.GetByIdAsync(request.ScreenId);
+            Screen? screen =
+                await _screenRepository.GetByIdAsync(request.ScreenId);
 
             if (screen == null)
             {
                 throw new ArgumentException("Screen not found.");
             }
 
-            bool conflict = await _showRepository.HasScheduleConflictAsync(
+            bool hasConflict = await _showRepository.HasScheduleConflictAsync(
                 request.ScreenId,
                 request.StartTime,
                 request.EndTime,
                 id);
 
-            if (conflict)
+            if (hasConflict)
             {
-                throw new ArgumentException(
-                    "Another show is already scheduled during this time on this screen.");
+                throw new ArgumentException("Another show is already scheduled during this time.");
             }
 
             show.MovieId = request.MovieId;
@@ -150,8 +210,6 @@ namespace MovieTicketBooking.Services
             show.StartTime = request.StartTime;
             show.EndTime = request.EndTime;
             show.TicketPrice = request.TicketPrice;
-            show.Movie = movie;
-            show.Screen = screen;
 
             await _showRepository.UpdateAsync(show);
 
@@ -160,25 +218,53 @@ namespace MovieTicketBooking.Services
 
         public async Task<bool> DeleteAsync(int id)
         {
-            return await _showRepository.DeleteAsync(id);
+            Show? show = await _showRepository.GetByIdAsync(id);
+
+            if (show == null)
+            {
+                return false;
+            }
+
+            await _showRepository.DeleteAsync(id);
+
+            return true;
         }
 
-        private void ValidateShowDetails(
-            DateTime startTime,
-            DateTime endTime,
-            decimal ticketPrice)
+        public async Task<List<ShowSeatResponse>> GetSeatsByShowIdAsync(int showId)
         {
-            if (startTime >= endTime)
+            Show? show = await _showRepository.GetByIdAsync(showId);
+
+            if (show == null)
             {
-                throw new ArgumentException(
-                    "End time must be later than start time.");
+                throw new ArgumentException("Show not found.");
             }
 
-            if (ticketPrice < 0)
+            List<ShowSeat> showSeats =
+                await _showSeatRepository.GetByShowIdAsync(showId);
+
+            List<ShowSeatResponse> response =
+                new List<ShowSeatResponse>();
+
+            foreach (ShowSeat showSeat in showSeats)
             {
-                throw new ArgumentException(
-                    "Ticket price cannot be negative.");
+                if (showSeat.Seat != null)
+                {
+                    ShowSeatResponse seatResponse = new ShowSeatResponse
+                    {
+                        ShowSeatId = showSeat.ShowSeatId,
+                        ShowId = showSeat.ShowId,
+                        SeatId = showSeat.SeatId,
+                        RowName = showSeat.Seat.RowName,
+                        SeatNumber = showSeat.Seat.SeatNumber,
+                        SeatType = showSeat.Seat.SeatType,
+                        Status = showSeat.Status
+                    };
+
+                    response.Add(seatResponse);
+                }
             }
+
+            return response;
         }
 
         private ShowResponse MapToResponse(Show show)
@@ -194,18 +280,6 @@ namespace MovieTicketBooking.Services
                 EndTime = show.EndTime,
                 TicketPrice = show.TicketPrice
             };
-        }
-
-        private List<ShowResponse> MapToResponseList(List<Show> shows)
-        {
-            var responses = new List<ShowResponse>();
-
-            foreach (var show in shows)
-            {
-                responses.Add(MapToResponse(show));
-            }
-
-            return responses;
         }
     }
 }
