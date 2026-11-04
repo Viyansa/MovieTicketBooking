@@ -1,5 +1,4 @@
-﻿
-using MovieTicketBooking.DTOs.Bookings;
+﻿using MovieTicketBooking.DTOs.Bookings;
 using MovieTicketBooking.Models;
 using MovieTicketBooking.Repositories.Interface;
 using MovieTicketBooking.Services.Interface;
@@ -23,8 +22,15 @@ namespace MovieTicketBooking.Services
         }
 
         public async Task<BookingResponse> CreateAsync(
-            CreateBookingRequest request)
+            CreateBookingRequest request,
+            string userId)
         {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new UnauthorizedAccessException(
+                    "Logged-in user not found.");
+            }
+
             if (request.SeatIds == null || request.SeatIds.Count == 0)
             {
                 throw new ArgumentException("Select at least one seat.");
@@ -32,7 +38,8 @@ namespace MovieTicketBooking.Services
 
             if (request.SeatIds.Distinct().Count() != request.SeatIds.Count)
             {
-                throw new ArgumentException("Duplicate seat IDs are not allowed.");
+                throw new ArgumentException(
+                    "Duplicate seat IDs are not allowed.");
             }
 
             Show? show = await _showRepository.GetByIdAsync(request.ShowId);
@@ -87,6 +94,7 @@ namespace MovieTicketBooking.Services
                 BookingDate = DateTime.UtcNow,
                 TotalAmount = totalAmount,
                 Status = "Confirmed",
+                UserId = userId,
                 BookingSeats = bookingSeats
             };
 
@@ -124,6 +132,11 @@ namespace MovieTicketBooking.Services
             }
 
             return MapToResponse(booking);
+        }
+
+        public async Task<Booking?> GetBookingEntityByIdAsync(int id)
+        {
+            return await _bookingRepository.GetByIdAsync(id);
         }
 
         public async Task<List<BookingResponse>> GetByShowIdAsync(

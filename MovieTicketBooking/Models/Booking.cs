@@ -39,6 +39,9 @@ namespace MovieTicketBooking.Models
         public string Status { get; set; } = "Confirmed";
 
         public Show? Show { get; set; }
+        public string? UserId { get; set; }
+
+        public ApplicationUser? User { get; set; }
 
         public ICollection<BookingSeat> BookingSeats { get; set; }
             = new List<BookingSeat>();

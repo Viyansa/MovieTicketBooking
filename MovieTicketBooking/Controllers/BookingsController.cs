@@ -1,4 +1,5 @@
-﻿
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MovieTicketBooking.DTOs.Bookings;
 using MovieTicketBooking.Services.Interface;
@@ -7,13 +8,18 @@ namespace MovieTicketBooking.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class BookingsController : ControllerBase
     {
         private readonly IBookingService _bookingService;
+        private readonly IAuthorizationService _authorizationService;
 
-        public BookingsController(IBookingService bookingService)
+        public BookingsController(
+            IBookingService bookingService,
+            IAuthorizationService authorizationService)
         {
             _bookingService = bookingService;
+            _authorizationService = authorizationService;
         }
 
         [HttpPost]
@@ -22,8 +28,19 @@ namespace MovieTicketBooking.Controllers
         {
             try
             {
+                string? userId = User.FindFirstValue(
+                    ClaimTypes.NameIdentifier);
+
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new
+                    {
+                        message = "User ID not found in token."
+                    });
+                }
+
                 BookingResponse response =
-                    await _bookingService.CreateAsync(request);
+                    await _bookingService.CreateAsync(request, userId);
 
                 return CreatedAtAction(
                     nameof(GetById),
@@ -45,6 +62,7 @@ namespace MovieTicketBooking.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
         {
             List<BookingResponse> bookings =
@@ -56,8 +74,8 @@ namespace MovieTicketBooking.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            BookingResponse? booking =
-                await _bookingService.GetByIdAsync(id);
+            var booking =
+                await _bookingService.GetBookingEntityByIdAsync(id);
 
             if (booking == null)
             {
@@ -67,10 +85,24 @@ namespace MovieTicketBooking.Controllers
                 });
             }
 
-            return Ok(booking);
+            var result = await _authorizationService.AuthorizeAsync(
+                User,
+                booking,
+                "BookingOwnerOrAdmin");
+
+            if (!result.Succeeded)
+            {
+                return Forbid();
+            }
+
+            BookingResponse? response =
+                await _bookingService.GetByIdAsync(id);
+
+            return Ok(response);
         }
 
         [HttpGet("show/{showId}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetByShowId(int showId)
         {
             List<BookingResponse> bookings =
@@ -82,12 +114,33 @@ namespace MovieTicketBooking.Controllers
         [HttpPut("{id}/cancel")]
         public async Task<IActionResult> Cancel(int id)
         {
+            var booking =
+                await _bookingService.GetBookingEntityByIdAsync(id);
+
+            if (booking == null)
+            {
+                return NotFound(new
+                {
+                    message = "Booking not found."
+                });
+            }
+
+            var result = await _authorizationService.AuthorizeAsync(
+                User,
+                booking,
+                "BookingOwnerOrAdmin");
+
+            if (!result.Succeeded)
+            {
+                return Forbid();
+            }
+
             try
             {
-                BookingResponse? booking =
+                BookingResponse? response =
                     await _bookingService.CancelAsync(id);
 
-                if (booking == null)
+                if (response == null)
                 {
                     return NotFound(new
                     {
@@ -95,7 +148,7 @@ namespace MovieTicketBooking.Controllers
                     });
                 }
 
-                return Ok(booking);
+                return Ok(response);
             }
             catch (InvalidOperationException ex)
             {
